@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Türkçe RAG</title>
+<style>
+  :root {
+    --zemin: #f7f6f3; --kart: #ffffff; --metin: #1d1d1b; --soluk: #6b6a66; --cizgi: #e3e1dc;
+    --vurgu: #1f5f8b; --vurgu-zemin: #e6eef5; --hata: #a1332b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --zemin: #161615; --kart: #1f1f1d; --metin: #ecebe7; --soluk: #9c9a94; --cizgi: #34332f;
+      --vurgu: #7fb3d9; --vurgu-zemin: #1d2d3a; --hata: #e3857d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--zemin); color: var(--metin);
+         font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .alt { color: var(--soluk); margin: 0 0 24px; font-size: .95rem; }
+  form { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] { flex: 1 1 280px; padding: 12px 14px; font: inherit; color: inherit; background: var(--kart);
+                     border: 1px solid var(--cizgi); border-radius: 8px; }
+  input[type=text]:focus { outline: 2px solid var(--vurgu); outline-offset: -1px; }
+  button { padding: 12px 18px; font: inherit; border-radius: 8px; border: 1px solid var(--vurgu); cursor: pointer;
+           background: var(--vurgu); color: var(--zemin); }
+  button.ikincil { background: transparent; color: var(--vurgu); }
+  button:disabled { opacity: .5; cursor: default; }
+  .ornekler { margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .ornekler button { padding: 4px 10px; font-size: .85rem; background: transparent; color: var(--soluk);
+                     border-color: var(--cizgi); }
+  #cevap { margin-top: 28px; white-space: pre-wrap; }
+  #cevap:empty { display: none; }
+  .atif { display: inline-block; min-width: 1.5em; padding: 0 4px; margin: 0 1px; border-radius: 4px;
+          background: var(--vurgu-zemin); color: var(--vurgu); font-size: .8em; text-align: center;
+          text-decoration: none; vertical-align: 1px; }
+  .hata { color: var(--hata); }
+  h2 { font-size: 1rem; margin: 32px 0 12px; color: var(--soluk); font-weight: 600; }
+  h2:empty { display: none; }
+  details { background: var(--kart); border: 1px solid var(--cizgi); border-radius: 8px; margin-bottom: 8px;
+            scroll-margin-top: 16px; }
+  details[open] { border-color: var(--vurgu); }
+  summary { padding: 10px 14px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+  summary .dosya { overflow-wrap: anywhere; }
+  summary .puan { margin-left: auto; color: var(--soluk); font-size: .8rem; white-space: nowrap; }
+  details p { margin: 0; padding: 0 14px 14px; white-space: pre-wrap; font-size: .92rem; color: var(--soluk); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Türkçe RAG</h1>
+  <p class="alt">Sorunuz BM25 ile belgelerde aranır, bulunan parçalarla Claude kaynak göstererek cevaplar.</p>
+  <form id="form">
+    <input id="soru" type="text" placeholder="Bir soru yazın…" autocomplete="off" required>
+    <button id="sor" type="submit">Sor</button>
+    <button id="ara" type="button" class="ikincil">Yalnızca ara</button>
+  </form>
+  <div class="ornekler">
+    <button type="button">Yıllık izin kaç gün?</button>
+    <button type="button">Evden çalışma için ne kadar destek veriliyor?</button>
+    <button type="button">Taksi masrafı nasıl geri alınır?</button>
+  </div>
+  <div id="cevap" aria-live="polite"></div>
+  <h2 id="kaynak-baslik"></h2>
+  <div id="kaynaklar"></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const kacis = (s) => s.replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+function cevabiCiz(metin) {
+  $("cevap").innerHTML = kacis(metin).replace(/\[(\d+)\]/g, '<a class="atif" href="#kaynak-$1">$1</a>');
+}
+
+function kaynaklariCiz(liste) {
+  $("kaynak-baslik").textContent = liste.length ? "Kaynaklar" : "Eşleşen parça bulunamadı";
+  $("kaynaklar").innerHTML = liste.map((k) => `
+    <details id="kaynak-${k.no}">
+      <summary><strong>[${k.no}]</strong><span class="dosya">${kacis(k.dosya)}${k.baslik ? " — " + kacis(k.baslik) : ""}</span>
+      <span class="puan">puan ${k.puan}</span></summary>
+      <p>${kacis(k.metin)}</p>
+    </details>`).join("");
+}
+
+async function gonder(yalnizcaAra) {
+  const soru = $("soru").value.trim();
+  if (!soru) return;
+  $("sor").disabled = $("ara").disabled = true;
+  $("cevap").textContent = yalnizcaAra ? "" : "Aranıyor…";
+  $("kaynaklar").innerHTML = $("kaynak-baslik").textContent = "";
+  let metin = "";
+  try {
+    const yanit = await fetch("/api/sor", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({soru, yalnizca_ara: yalnizcaAra}),
+    });
+    if (!yanit.ok) throw new Error(`${yanit.status} ${yanit.statusText}`);
+    const okuyucu = yanit.body.getReader();
+    const cozucu = new TextDecoder();
+    let tampon = "";
+    for (;;) {
+      const {value, done} = await okuyucu.read();
+      if (done) break;
+      tampon += cozucu.decode(value, {stream: true});
+      const satirlar = tampon.split("\n");
+      tampon = satirlar.pop();
+      for (const satir of satirlar) {
+        if (!satir) continue;
+        const olay = JSON.parse(satir);
+        if (olay.tur === "kaynaklar") {
+          kaynaklariCiz(olay.kaynaklar);
+          if (!yalnizcaAra) $("cevap").textContent = "Cevap yazılıyor…";
+        } else if (olay.tur === "metin") {
+          metin += olay.metin;
+          cevabiCiz(metin);
+        } else if (olay.tur === "hata") {
+          $("cevap").innerHTML = `<span class="hata">${kacis(olay.mesaj)}</span>`;
+        }
+      }
+    }
+  } catch (hata) {
+    $("cevap").innerHTML = `<span class="hata">İstek başarısız: ${kacis(String(hata.message))}</span>`;
+  } finally {
+    $("sor").disabled = $("ara").disabled = false;
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const atif = e.target.closest(".atif");
+  if (atif) { const k = document.querySelector(atif.getAttribute("href")); if (k) k.open = true; }
+});
+$("form").addEventListener("submit", (e) => { e.preventDefault(); gonder(false); });
+$("ara").addEventListener("click", () => gonder(true));
+document.querySelectorAll(".ornekler button").forEach((b) =>
+  b.addEventListener("click", () => { $("soru").value = b.textContent; gonder(false); }));
+</script>
+</body>
+</html>

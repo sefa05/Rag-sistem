@@ -1,0 +1,23 @@
+[project]
+name = "turkce-rag"
+version = "0.1.0"
+description = "Türkçe belgeler için BM25 retrieval ve Claude ile kaynak gösteren soru-cevap"
+requires-python = ">=3.10"
+dependencies = ["anthropic>=1.8"]
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4"]
+test = ["pytest>=8"]
+
+[project.scripts]
+rag = "turkce_rag.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["turkce_rag*"]
+
+[tool.setuptools.package-data]
+turkce_rag = ["arayuz.html"]

@@ -1,0 +1,30 @@
+{"soru": "Yılda kaç gün ücretli tatil hakkım var?", "belge": "01_izin_politikasi.md", "bolum": "Yıllık izin"}
+{"soru": "Kullanmadığım izin günleri seneye aktarılır mı?", "belge": "01_izin_politikasi.md", "bolum": "Yıllık izin"}
+{"soru": "Grip olduğumda rapor almam gerekir mi?", "belge": "01_izin_politikasi.md", "bolum": "Hastalık izni"}
+{"soru": "Babalar doğumdan sonra kaç gün izin alabilir?", "belge": "01_izin_politikasi.md", "bolum": "Doğum ve babalık izni"}
+{"soru": "Evlenince kaç gün izin veriliyor?", "belge": "01_izin_politikasi.md", "bolum": "Mazeret izinleri"}
+{"soru": "Haftada kaç gün ofise gitmek zorundayım?", "belge": "02_uzaktan_calisma.md", "bolum": "Ofis günleri"}
+{"soru": "Evden calisanlara internet parasi odeniyor mu?", "belge": "02_uzaktan_calisma.md", "bolum": "Ev ofisi desteği"}
+{"soru": "Yurtdışında bir ay çalışabilir miyim?", "belge": "02_uzaktan_calisma.md", "bolum": "Yurt dışından çalışma"}
+{"soru": "Hangi saatlerde toplantılara katılabilir olmam lazım?", "belge": "02_uzaktan_calisma.md", "bolum": "Çalışma saatleri"}
+{"soru": "Fişleri kaç gün içinde sisteme girmeliyim?", "belge": "03_masraf_yonetimi.md", "bolum": "Genel kural"}
+{"soru": "Taksi ücretimi ne zaman geri alabilirim?", "belge": "03_masraf_yonetimi.md", "bolum": "Ulaşım"}
+{"soru": "Otel için gecelik ne kadar harcayabilirim?", "belge": "03_masraf_yonetimi.md", "bolum": "Yemek ve konaklama"}
+{"soru": "Özel arabamla iş gezisine gidersem kilometre ücreti alır mıyım?", "belge": "03_masraf_yonetimi.md", "bolum": "Ulaşım"}
+{"soru": "Kurs ve sertifika için ne kadar para ayrılıyor?", "belge": "04_egitim_ve_gelisim.md", "bolum": "Eğitim bütçesi"}
+{"soru": "Konferansta sunum yaparsam masraflarımı kim öder?", "belge": "04_egitim_ve_gelisim.md", "bolum": "Konferanslar"}
+{"soru": "Ayda bir gün kendi projeme çalışabilir miyim?", "belge": "04_egitim_ve_gelisim.md", "bolum": "Öğrenme günleri"}
+{"soru": "Laptopum bozulursa ne olur?", "belge": "05_ekipman_ve_bt.md", "bolum": "Dizüstü bilgisayar"}
+{"soru": "Telefonum çalındı, şirket cihazıydı, ne yapmalıyım?", "belge": "05_ekipman_ve_bt.md", "bolum": "Kayıp ve çalıntı"}
+{"soru": "Kulaklık almak için bütçe var mı?", "belge": "05_ekipman_ve_bt.md", "bolum": "Çevre birimleri"}
+{"soru": "Şifrem kaç karakter olmalı?", "belge": "06_bilgi_guvenligi.md", "bolum": "Parolalar ve kimlik doğrulama"}
+{"soru": "Müşteri kodunu ChatGPT'ye yapıştırabilir miyim?", "belge": "06_bilgi_guvenligi.md", "bolum": "Yapay zekâ araçları"}
+{"soru": "Şüpheli bir mail geldi, ne yapayım?", "belge": "06_bilgi_guvenligi.md", "bolum": "Oltalama ve güvenlik olayları"}
+{"soru": "Zam ne zaman yapılıyor?", "belge": "07_performans_degerlendirme.md", "bolum": "Takvim"}
+{"soru": "Değerlendirme notuma itiraz edebilir miyim?", "belge": "07_performans_degerlendirme.md", "bolum": "İtiraz"}
+{"soru": "Terfi almak için ne gerekiyor?", "belge": "07_performans_degerlendirme.md", "bolum": "Terfi"}
+{"soru": "İlk gün saat kaçta nereye gitmeliyim?", "belge": "08_ise_baslangic.md", "bolum": "İlk gün"}
+{"soru": "Deneme süresinde tatile çıkabilir miyim?", "belge": "08_ise_baslangic.md", "bolum": "Deneme süresi"}
+{"soru": "Sağlık sigortası ailemi kapsıyor mu?", "belge": "08_ise_baslangic.md", "bolum": "Yan haklar"}
+{"soru": "Yemek kartına ne kadar yükleniyor?", "belge": "08_ise_baslangic.md", "bolum": "Yan haklar"}
+{"soru": "Güvenlik eğitimini bitirmezsem ne olur?", "belge": "06_bilgi_guvenligi.md", "bolum": "Eğitim"}
