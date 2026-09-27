@@ -1,4 +1,4 @@
-"""Belgeleri okuyup parçalayan ve BM25 ile arayan indeks."""
+"""Belgeleri okuyup parçalayan ve BM25, anlamsal ya da karma yöntemle arayan indeks."""
 
 from __future__ import annotations
 
@@ -11,6 +11,10 @@ from pathlib import Path
 from .metin import jetonla, parcala
 
 DESTEKLENEN_UZANTILAR = {".md", ".txt", ".pdf"}
+YONTEMLER = ("bm25", "anlamsal", "karma")
+
+# Reciprocal rank fusion sabiti. 60, yöntemi öneren çalışmadaki (Cormack vd., 2009) değerdir; ayarlanmadı.
+RRF_K = 60
 
 
 @dataclass
@@ -37,13 +41,19 @@ def _dosya_oku(yol: Path) -> str:
     return yol.read_text(encoding="utf-8")
 
 
+def _vektor_yolu(indeks_yolu: Path) -> Path:
+    return indeks_yolu.with_suffix(".vektorler.npy")
+
+
 class Indeks:
-    """Okapi BM25. k1 ve b literatürdeki yaygın varsayılanlardır."""
+    """Okapi BM25 (k1 ve b literatürdeki yaygın varsayılanlar) ve isteğe bağlı gömme vektörleri."""
 
     def __init__(self, parcalar: list[Parca], k1: float = 1.5, b: float = 0.75):
         self.parcalar = parcalar
         self.k1 = k1
         self.b = b
+        self.vektorler = None  # numpy matrisi; anlamsal_hazirla() ya da yukle() doldurur
+        self._gomucu = None
         # Başlık da jetonlara girer: "Uzaktan Çalışma" başlıklı parça, metinde bu kelimeler geçmese de bulunur.
         self._jetonlar = [Counter(jetonla(f"{p.baslik}\n{p.metin}")) for p in parcalar]
         self._uzunluk = [sum(j.values()) for j in self._jetonlar]
@@ -66,7 +76,20 @@ class Indeks:
             raise SystemExit(f"{klasor} içinde okunacak belge yok ({', '.join(sorted(DESTEKLENEN_UZANTILAR))}).")
         return cls(parcalar)
 
-    def ara(self, sorgu: str, k: int = 5) -> list[Sonuc]:
+    @property
+    def anlamsal_var(self) -> bool:
+        return self.vektorler is not None
+
+    def _parca_metinleri(self) -> list[str]:
+        from .anlamsal import parca_metni
+
+        return [parca_metni(p.baslik, p.metin) for p in self.parcalar]
+
+    def anlamsal_hazirla(self, gomucu) -> None:
+        self._gomucu = gomucu
+        self.vektorler = gomucu.gom(self._parca_metinleri(), "passage")
+
+    def _bm25(self, sorgu: str) -> list[Sonuc]:
         sorgu_jetonlari = set(jetonla(sorgu))
         sonuclar = []
         for parca, jetonlar, uzunluk in zip(self.parcalar, self._jetonlar, self._uzunluk):
@@ -79,11 +102,48 @@ class Indeks:
             if puan > 0:
                 sonuclar.append(Sonuc(parca, puan))
         sonuclar.sort(key=lambda s: s.puan, reverse=True)
-        return sonuclar[:k]
+        return sonuclar
+
+    def _anlamsal(self, sorgu: str) -> list[Sonuc]:
+        if not self.anlamsal_var:
+            raise SystemExit("Bu indekste anlamsal vektör yok. `rag indeksle <klasör> --anlamsal` ile yeniden oluşturun.")
+        if self._gomucu is None:
+            from .anlamsal import Gomucu
+
+            self._gomucu = Gomucu()
+        benzerlik = self.vektorler @ self._gomucu.gom([sorgu], "query")[0]
+        sira = benzerlik.argsort()[::-1]
+        return [Sonuc(self.parcalar[i], float(benzerlik[i])) for i in sira]
+
+    def _karma(self, sorgu: str) -> list[Sonuc]:
+        """İki sıralamayı puanlarına değil sıralarına göre birleştirir; BM25 ve kosinüs ölçekleri farklı olduğu için."""
+        puanlar: Counter[int] = Counter()
+        for liste in (self._bm25(sorgu), self._anlamsal(sorgu)):
+            for sira, s in enumerate(liste, 1):
+                puanlar[s.parca.kimlik] += 1 / (RRF_K + sira)
+        return [Sonuc(self.parcalar[i], p) for i, p in puanlar.most_common()]
+
+    def ara(self, sorgu: str, k: int = 5, yontem: str = "bm25") -> list[Sonuc]:
+        if yontem not in YONTEMLER:
+            raise ValueError(f"Bilinmeyen yöntem: {yontem}")
+        return getattr(self, f"_{yontem}")(sorgu)[:k]
+
+    def varsayilan_yontem(self) -> str:
+        # Örnek soru setinde anlamsal arama BM25'ten anlamlı ölçüde iyi, karmadan ise farksız çıktı (README > Ölçüm).
+        return "anlamsal" if self.anlamsal_var else "bm25"
 
     def kaydet(self, yol: Path) -> None:
         yol.parent.mkdir(parents=True, exist_ok=True)
         veri = {"k1": self.k1, "b": self.b, "parcalar": [asdict(p) for p in self.parcalar]}
+        vektor_yolu = _vektor_yolu(yol)
+        if self.anlamsal_var:
+            import numpy as np
+            from .anlamsal import parca_ozeti
+
+            np.save(vektor_yolu, self.vektorler)
+            veri["vektor_ozeti"] = parca_ozeti(self._parca_metinleri())
+        elif vektor_yolu.exists():
+            vektor_yolu.unlink()  # eski indeksten kalan vektörler yeni parçalara ait değil
         yol.write_text(json.dumps(veri, ensure_ascii=False, indent=1), encoding="utf-8")
 
     @classmethod
@@ -91,4 +151,12 @@ class Indeks:
         if not yol.exists():
             raise SystemExit(f"İndeks bulunamadı: {yol}. Önce `rag indeksle <klasör>` çalıştırın.")
         veri = json.loads(yol.read_text(encoding="utf-8"))
-        return cls([Parca(**p) for p in veri["parcalar"]], veri["k1"], veri["b"])
+        indeks = cls([Parca(**p) for p in veri["parcalar"]], veri["k1"], veri["b"])
+        if "vektor_ozeti" in veri:
+            from .anlamsal import bagimliliklar, parca_ozeti
+
+            np = bagimliliklar()[0]
+            if parca_ozeti(indeks._parca_metinleri()) != veri["vektor_ozeti"]:
+                raise SystemExit(f"{_vektor_yolu(yol)} bu indeksin parçalarına ait değil; indeksi yeniden oluşturun.")
+            indeks.vektorler = np.load(_vektor_yolu(yol))
+        return indeks

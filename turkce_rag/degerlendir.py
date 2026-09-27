@@ -56,10 +56,10 @@ def _ilk_sira(kosullar: list[bool]) -> int | None:
     return kosullar.index(True) + 1 if True in kosullar else None
 
 
-def degerlendir(indeks: Indeks, sorular: list[dict], k: int = 5) -> Ozet:
+def degerlendir(indeks: Indeks, sorular: list[dict], k: int = 5, yontem: str = "bm25") -> Ozet:
     sonuclar = []
     for s in sorular:
-        parcalar = [r.parca for r in indeks.ara(s["soru"], k)]
+        parcalar = [r.parca for r in indeks.ara(s["soru"], k, yontem)]
         belge = _ilk_sira([p.kaynak == s["belge"] for p in parcalar])
         bolum = None
         if s.get("bolum"):

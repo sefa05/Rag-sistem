@@ -1,1 +1,1 @@
-"""Türkçe belgeler için BM25 + Claude RAG sistemi."""
+"""Türkçe belgeler için BM25 / anlamsal arama + Claude RAG sistemi."""

@@ -13,7 +13,7 @@ from importlib.resources import files
 from .indeks import Indeks
 
 
-def _isleyici(indeks: Indeks, k: int) -> type[BaseHTTPRequestHandler]:
+def _isleyici(indeks: Indeks, k: int, yontem: str = "bm25") -> type[BaseHTTPRequestHandler]:
     sayfa = files("turkce_rag").joinpath("arayuz.html").read_bytes()
 
     class Isleyici(BaseHTTPRequestHandler):
@@ -48,13 +48,14 @@ def _isleyici(indeks: Indeks, k: int) -> type[BaseHTTPRequestHandler]:
                 self.send_error(400, "Soru boş")
                 return
 
-            sonuclar = indeks.ara(soru, k)
+            sonuclar = indeks.ara(soru, k, yontem)
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self._satir({
                 "tur": "kaynaklar",
+                "yontem": yontem,
                 "kaynaklar": [
                     {"no": i, "dosya": s.parca.kaynak, "baslik": s.parca.baslik, "metin": s.parca.metin,
                      "puan": round(s.puan, 2)}
@@ -77,9 +78,11 @@ def _isleyici(indeks: Indeks, k: int) -> type[BaseHTTPRequestHandler]:
     return Isleyici
 
 
-def calistir(indeks: Indeks, adres: str, port: int, k: int) -> None:
-    sunucu = ThreadingHTTPServer((adres, port), _isleyici(indeks, k))
-    print(f"Arayüz: http://{adres}:{port}  (durdurmak için Ctrl+C)")
+def calistir(indeks: Indeks, adres: str, port: int, k: int, yontem: str) -> None:
+    if yontem != "bm25":
+        indeks.ara("ısınma", 1, yontem)  # gömme modelini ilk istekten önce yükle
+    sunucu = ThreadingHTTPServer((adres, port), _isleyici(indeks, k, yontem))
+    print(f"Arayüz: http://{adres}:{port}  (arama: {yontem}, durdurmak için Ctrl+C)")
     try:
         sunucu.serve_forever()
     finally:

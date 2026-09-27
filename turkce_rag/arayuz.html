@@ -52,7 +52,7 @@
 <body>
 <main>
   <h1>Türkçe RAG</h1>
-  <p class="alt">Sorunuz BM25 ile belgelerde aranır, bulunan parçalarla Claude kaynak göstererek cevaplar.</p>
+  <p class="alt">Sorunuz belgelerde aranır, bulunan parçalarla Claude kaynak göstererek cevaplar.</p>
   <form id="form">
     <input id="soru" type="text" placeholder="Bir soru yazın…" autocomplete="off" required>
     <button id="sor" type="submit">Sor</button>
@@ -75,8 +75,11 @@ function cevabiCiz(metin) {
   $("cevap").innerHTML = kacis(metin).replace(/\[(\d+)\]/g, '<a class="atif" href="#kaynak-$1">$1</a>');
 }
 
-function kaynaklariCiz(liste) {
-  $("kaynak-baslik").textContent = liste.length ? "Kaynaklar" : "Eşleşen parça bulunamadı";
+const YONTEM_ADI = {bm25: "kelime araması (BM25)", anlamsal: "anlamsal arama", karma: "karma arama"};
+
+function kaynaklariCiz(liste, yontem) {
+  $("kaynak-baslik").textContent = liste.length
+    ? `Kaynaklar · ${YONTEM_ADI[yontem] || yontem}` : "Eşleşen parça bulunamadı";
   $("kaynaklar").innerHTML = liste.map((k) => `
     <details id="kaynak-${k.no}">
       <summary><strong>[${k.no}]</strong><span class="dosya">${kacis(k.dosya)}${k.baslik ? " — " + kacis(k.baslik) : ""}</span>
@@ -111,7 +114,7 @@ async function gonder(yalnizcaAra) {
         if (!satir) continue;
         const olay = JSON.parse(satir);
         if (olay.tur === "kaynaklar") {
-          kaynaklariCiz(olay.kaynaklar);
+          kaynaklariCiz(olay.kaynaklar, olay.yontem);
           if (!yalnizcaAra) $("cevap").textContent = "Cevap yazılıyor…";
         } else if (olay.tur === "metin") {
           metin += olay.metin;
